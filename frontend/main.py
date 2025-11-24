@@ -6,12 +6,12 @@ st.set_page_config(page_title="Chatbot UI", page_icon="🤖")
 st.title("Friendly Chatbot Assistant")
 
 # Worker URL
-api_url = "https://cf-ai-chatbot.darrenfr83.workers.dev"
+# api_url = "http://127.0.0.1:8787/"  
+api_url = "https://cf-ai-chatbot.darrenfr83.workers.dev/"  
 
-# Chat history
+# Chat history in session
 if "messages" not in st.session_state:
     st.session_state.messages = []
-
 
 # -------------------------------
 # Stream from Cloudflare Worker
@@ -74,11 +74,9 @@ def stream_response(prompt: str):
 # -------------------------------
 # Chat UI Display
 # -------------------------------
-# Render past messages once (no re-render later)
 for msg in st.session_state.messages:
     with st.chat_message(msg["role"]):
         st.write(msg["content"])
-
 
 # User input box
 prompt = st.chat_input("Ask something...")
@@ -101,3 +99,28 @@ if prompt:
 
     # Save final assistant message
     st.session_state.messages.append({"role": "assistant", "content": assistant_text})
+
+# -------------------------------
+# User Prompt History Section
+# -------------------------------
+st.markdown("---")
+st.header("User Prompt History")
+
+def fetch_prompt_history():
+    try:
+        resp = requests.get(f"{api_url}history")  # your Worker should have a /history GET route
+        if resp.status_code == 200:
+            data = resp.json()
+            return data.get("history", [])
+        else:
+            return [f"Error fetching history: {resp.status_code}"]
+    except Exception as e:
+        return [f"Error fetching history: {e}"]
+
+history = fetch_prompt_history()
+
+if history:
+    for i, item in enumerate(history, start=1):
+        st.write(f"{i}. {item}")
+else:
+    st.write("No history found.")

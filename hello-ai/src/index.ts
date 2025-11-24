@@ -13,6 +13,7 @@
 
 export interface Env {
   AI: Ai;
+  KV_BINDING: KVNamespace;
 }
 
 export interface ChatRequestBody {
@@ -22,11 +23,26 @@ export interface ChatRequestBody {
 
 export default {
   async fetch(request: Request, env: Env): Promise<Response> {
+    const method = request.method.toUpperCase();
+        const url = new URL(request.url);
 
-	 if (request.method !== "POST") {
-      return new Response("This is an ai chatbot api deployed with cloudflare, only POST requests allowed", { status: 405 });
+
+    // Route to get chat history
+    if (method === "GET" && url.pathname === "/history") {
+      try {
+        const historyJSON = await env.KV_BINDING.get("history");
+        const history: string[] = historyJSON ? JSON.parse(historyJSON) : [];
+        return new Response(JSON.stringify({history}), {
+          headers: {
+            "content-type": "application/json",
+            "Access-Control-Allow-Origin": "*",
+          },
+        });
+      } catch (err) {
+        console.error("Error reading history from KV:", err);
+        return new Response("Error reading history", { status: 500 });
+      }
     }
-
     let body: ChatRequestBody;
     try {
       body = await request.json();
@@ -38,6 +54,22 @@ export default {
     if (!userPrompt) {
       return new Response("Missing `prompt` field", { status: 400 });
     }
+
+    // Save user prompt to KV
+    void (async () => {
+      try {
+        const historyJSON = await env.KV_BINDING.get("history");
+        const history: string[] = historyJSON ? JSON.parse(historyJSON) : [];
+
+        const newHistory = [...history, userPrompt].slice(-50); // keep last 50 prompts
+        await env.KV_BINDING.put("history", JSON.stringify(newHistory));
+
+        console.log("Saved new history:", newHistory);
+      } catch (err) {
+        console.error("Error saving to KV:", err);
+      }
+    })();
+
 
     const messages = [
       { role: "system", content: "You are a friendly assistant" },
