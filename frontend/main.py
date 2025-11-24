@@ -6,7 +6,7 @@ st.set_page_config(page_title="Chatbot UI", page_icon="🤖")
 st.title("Friendly Chatbot Assistant")
 
 # Worker URL
-api_url = "https://hello-ai.darrenfr83.workers.dev"
+api_url = "cf-ai-chatbot.darrenfr83.workers.dev"
 
 # Chat history
 if "messages" not in st.session_state:
